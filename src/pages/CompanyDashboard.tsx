@@ -140,10 +140,17 @@ export function CompanyDashboard() {
           .from("companies")
           .select("id, name")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (companyError) {
           throw companyError;
+        }
+
+        if (!companyRow) {
+          if (isMounted) {
+            setLoadError("Aucune entreprise liee a ce compte.");
+          }
+          return;
         }
 
         const [slotsResult, bookingsResult] = await Promise.all([

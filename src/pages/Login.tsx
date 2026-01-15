@@ -2,6 +2,9 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -56,16 +59,34 @@ export function Login() {
       setError("Renseignez votre email pour recevoir le lien.");
       return;
     }
-    setIsResetting(true);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    });
-    if (resetError) {
-      setError("Impossible d'envoyer le lien.");
-    } else {
-      setInfo("Lien de reinitialisation envoye par email.");
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setError("Configuration Supabase manquante.");
+      return;
     }
-    setIsResetting(false);
+
+    setIsResetting(true);
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/send_password_reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("reset_failed");
+      }
+
+      setInfo("Lien de reinitialisation envoye par email.");
+    } catch (error) {
+      setError("Impossible d'envoyer le lien.");
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -140,3 +161,4 @@ export function Login() {
     </div>
   );
 }
+
